@@ -25,7 +25,7 @@ from huggingface_hub import HfFolder, Repository, whoami
 from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
-from transformers import CLIPTextModel, CLIPTokenizer, add_start_docstrings
+from transformers import CLIPTextModel, CLIPTokenizer
 
 
 torch.backends.cudnn.benchmark = True
