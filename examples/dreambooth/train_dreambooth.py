@@ -94,7 +94,8 @@ def parse_args(input_args=None):
     )
     parser.add_argument(
         "--save_sample_prompts",
-        type=list,
+        type=string,
+        nargs='+',
         default=None,
         help="The prompts list used to generate samples outputs to save.",
     )
