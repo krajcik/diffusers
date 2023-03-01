@@ -888,9 +888,9 @@ def main(args):
                 progress_bar.set_postfix(**logs)
                 accelerator.log(logs, step=global_step)
 
-            if global_step > 0 and global_step >= args.save_min_steps:
-                save_model = True if not global_step % args.save_model_steps else False
-                save_sample = True if not global_step % args.save_interval else False
+            save_model = True if (not global_step % args.save_model_steps) else False
+            save_sample = True if (not global_step % args.save_interval) else False
+            if global_step > 0 and global_step >= args.save_min_steps and (save_model or save_sample):
                 save_weights(global_step, save_model=save_model, save_sample=save_sample)
 
             progress_bar.update(1)
