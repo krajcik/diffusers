@@ -93,6 +93,12 @@ def parse_args(input_args=None):
         help="The prompt used to generate sample outputs to save.",
     )
     parser.add_argument(
+        "--save_sample_prompts",
+        type=list,
+        default=None,
+        help="The prompts list used to generate samples outputs to save.",
+    )
+    parser.add_argument(
         "--sample_prompt_modifier",
         type=str,
         default=None,
@@ -731,7 +737,7 @@ def main(args):
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
 
-    def save_weights(step):
+    def save_weights(step, save_model = false, save_sample = false):
         # Create the pipeline using using the trained modules and save it.
         if accelerator.is_main_process:
             if args.train_text_encoder:
@@ -754,46 +760,43 @@ def main(args):
             pipeline.scheduler = DDIMScheduler.from_config(pipeline.scheduler.config)
             if is_xformers_available():
                 pipeline.enable_xformers_memory_efficient_attention()
-            save_dir = os.path.join(args.output_dir, f"{step}")
-            if (args.save_model_steps % step == 0) or (args.max_train_steps == step):
+            if save_model:
+                save_dir = os.path.join(args.output_dir, f"{step}")
                 pipeline.save_pretrained(save_dir)
                 with open(os.path.join(save_dir, "args.json"), "w") as f:
                     json.dump(args.__dict__, f, indent=2)
 
-            pipeline = pipeline.to(accelerator.device)
-            g_cuda = torch.Generator(device=accelerator.device).manual_seed(args.seed)
-            pipeline.set_progress_bar_config(disable=True)
-            sample_dir = os.path.join(save_dir, "samples")
-            os.makedirs(sample_dir, exist_ok=True)
-            with torch.autocast("cuda"), torch.inference_mode():
-                if args.save_calibrate_prompt is not None:
-                    images = pipeline(
-                        args.save_calibrate_prompt,
-                        negative_prompt=args.save_sample_negative_prompt,
-                        guidance_scale=args.save_guidance_scale,
-                        num_inference_steps=args.save_infer_steps,
-                        generator=g_cuda
-                    ).images
-                    images[0].save(os.path.join(sample_dir, f"0_{args.save_calibrate_prompt}.png"))
-                if args.save_sample_prompt is not None:
-                    for i in tqdm(range(args.n_save_sample), desc="Generating samples"):
-                        images = pipeline(
-                            args.save_sample_prompt,
-                            negative_prompt=args.save_sample_negative_prompt,
-                            guidance_scale=args.save_guidance_scale,
-                            num_inference_steps=args.save_infer_steps,
-                            generator=g_cuda
-                        ).images
-                        images[0].save(os.path.join(sample_dir, f"1_{args.save_sample_prompt}_{i}.png"))
-                        if args.sample_prompt_modifier is not None:
+            if save_sample:
+                pipeline = pipeline.to(accelerator.device)
+                g_cuda = torch.Generator(device=accelerator.device).manual_seed(args.seed)
+                pipeline.set_progress_bar_config(disable=True)
+                sample_dir = os.path.join(args.output_dir, "samples")
+                sample_dir = os.path.join(sample_dir, f"{step}")
+                os.makedirs(sample_dir, exist_ok=True)
+                with torch.autocast("cuda"), torch.inference_mode():
+                    if args.save_sample_prompt is not None:
+                        for i in tqdm(range(args.n_save_sample), desc="Generating samples"):
                             images = pipeline(
-                                args.sample_prompt_modifier,
+                                args.save_sample_prompt,
                                 negative_prompt=args.save_sample_negative_prompt,
                                 guidance_scale=args.save_guidance_scale,
                                 num_inference_steps=args.save_infer_steps,
                                 generator=g_cuda
                             ).images
-                            images[0].save(os.path.join(sample_dir, f"2_{args.sample_prompt_modifier}_{i}.png"))
+                            images[0].save(os.path.join(sample_dir, f"1_{args.save_sample_prompt}_{i}.png"))
+                    if args.save_sample_prompts is not None:
+                        for prompt in args.save_sample_prompts:
+                            prompt_strip = prompt[:8]
+                            for i in tqdm(range(args.n_save_sample), desc="Generating samples \"{prompt_strip}\""):
+                                images = pipeline(
+                                    strip(prompt),
+                                    negative_prompt=args.save_sample_negative_prompt,
+                                    guidance_scale=args.save_guidance_scale,
+                                    num_inference_steps=args.save_infer_steps,
+                                    generator=g_cuda
+                                ).images
+                                images[0].save(os.path.join(sample_dir, f"{i}_{prompt_strip}.png"))
+                    
             del pipeline
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -885,8 +888,10 @@ def main(args):
                 progress_bar.set_postfix(**logs)
                 accelerator.log(logs, step=global_step)
 
-            if global_step > 0 and not global_step % args.save_interval and global_step >= args.save_min_steps:
-                save_weights(global_step)
+            if global_step > 0 and global_step >= args.save_min_steps:
+                save_model = True if not global_step % args.save_model_steps else False
+                save_sample = True if not global_step % args.save_interval else False
+                save_weights(global_step, save_model=save_model, save_sample=save_sample)
 
             progress_bar.update(1)
             global_step += 1
@@ -896,7 +901,7 @@ def main(args):
 
         accelerator.wait_for_everyone()
 
-    save_weights(global_step)
+    save_weights(global_step, save_model=True, save_sample=True)
 
     accelerator.end_training()
 
