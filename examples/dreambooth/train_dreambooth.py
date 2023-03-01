@@ -789,7 +789,7 @@ def main(args):
                             prompt_strip = prompt[:8]
                             for i in tqdm(range(args.n_save_sample), desc="Generating samples \"{prompt_strip}\""):
                                 images = pipeline(
-                                    strip(prompt),
+                                    prompt,
                                     negative_prompt=args.save_sample_negative_prompt,
                                     guidance_scale=args.save_guidance_scale,
                                     num_inference_steps=args.save_infer_steps,
