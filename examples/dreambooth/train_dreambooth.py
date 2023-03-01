@@ -787,8 +787,8 @@ def main(args):
                             images[0].save(os.path.join(sample_dir, f"1_{args.save_sample_prompt}_{i}.png"))
                     if args.save_sample_prompts is not None:
                         for prompt in args.save_sample_prompts:
-                            prompt_strip = prompt[:8]
-                            for i in tqdm(range(args.n_save_sample), desc=f"Generating samples \"{prompt_strip}\""):
+                            # prompt_strip = prompt[:8]
+                            for i in tqdm(range(args.n_save_sample), desc=f"Generating samples \"{prompt}\""):
                                 images = pipeline(
                                     prompt,
                                     negative_prompt=args.save_sample_negative_prompt,
@@ -796,7 +796,7 @@ def main(args):
                                     num_inference_steps=args.save_infer_steps,
                                     generator=g_cuda
                                 ).images
-                                images[0].save(os.path.join(sample_dir, f"{i}_{prompt_strip}.png"))
+                                images[0].save(os.path.join(sample_dir, f"{i}_{prompt}.png"))
                     
             del pipeline
             if torch.cuda.is_available():
