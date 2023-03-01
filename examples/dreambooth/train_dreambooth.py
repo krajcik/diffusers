@@ -787,7 +787,7 @@ def main(args):
                     if args.save_sample_prompts is not None:
                         for prompt in args.save_sample_prompts:
                             prompt_strip = prompt[:8]
-                            for i in tqdm(range(args.n_save_sample), desc="Generating samples \"{prompt_strip}\""):
+                            for i in tqdm(range(args.n_save_sample), desc=f"Generating samples \"{prompt_strip}\""):
                                 images = pipeline(
                                     prompt,
                                     negative_prompt=args.save_sample_negative_prompt,
